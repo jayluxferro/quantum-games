@@ -86,6 +86,9 @@ importers:
       '@colyseus/ws-transport':
         specifier: ^0.15.0
         version: 0.15.3(@colyseus/core@0.15.57(@colyseus/schema@2.0.37))(@colyseus/schema@2.0.37)
+      '@quantum-games/quantum-sim':
+        specifier: workspace:*
+        version: link:../../packages/quantum-sim
       colyseus:
         specifier: ^0.15.0
         version: 0.15.57(@colyseus/schema@2.0.37)(express@4.22.1)

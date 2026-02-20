@@ -283,6 +283,154 @@ INSERT INTO achievements (slug, name, description, achievement_type, xp_reward, 
     ('teacher-helper', 'Teacher Helper', 'Help another player complete a level', 'social', 75, '{"type": "cooperative_completions", "count": 1}')
 ON CONFLICT (slug) DO NOTHING;
 
+-- ============================================
+-- Proctoring Tables for Exam Integrity
+-- ============================================
+
+-- Create proctoring enum types
+DO $$ BEGIN
+    CREATE TYPE proctoring_provider AS ENUM (
+        'lockdown_browser',
+        'proctorio',
+        'honorlock',
+        'examity',
+        'internal'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE proctoring_status AS ENUM (
+        'pending',
+        'verified',
+        'active',
+        'completed',
+        'flagged',
+        'invalidated'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Proctored sessions table
+CREATE TABLE IF NOT EXISTS proctored_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    level_id UUID NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
+    provider proctoring_provider DEFAULT 'internal',
+    status proctoring_status DEFAULT 'pending',
+    browser_fingerprint VARCHAR(512),
+    user_agent VARCHAR(500),
+    ip_address VARCHAR(45),
+    provider_session_id VARCHAR(255),
+    provider_data JSONB DEFAULT '{}',
+    session_token VARCHAR(255) UNIQUE NOT NULL,
+    verification_code VARCHAR(50),
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    verified_at TIMESTAMP WITH TIME ZONE,
+    ended_at TIMESTAMP WITH TIME ZONE,
+    max_duration_minutes INTEGER DEFAULT 60,
+    flags JSONB DEFAULT '[]',
+    proctor_notes TEXT,
+    integrity_score INTEGER CHECK (integrity_score >= 0 AND integrity_score <= 100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Proctoring flags table
+CREATE TABLE IF NOT EXISTS proctoring_flags (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id UUID NOT NULL REFERENCES proctored_sessions(id) ON DELETE CASCADE,
+    flag_type VARCHAR(100) NOT NULL,
+    severity VARCHAR(20) DEFAULT 'warning',
+    description TEXT NOT NULL,
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    flag_metadata JSONB DEFAULT '{}',
+    reviewed BOOLEAN DEFAULT false,
+    reviewer_notes TEXT
+);
+
+-- Proctoring indexes
+CREATE INDEX IF NOT EXISTS idx_proctored_sessions_user_id ON proctored_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_proctored_sessions_level_id ON proctored_sessions(level_id);
+CREATE INDEX IF NOT EXISTS idx_proctored_sessions_token ON proctored_sessions(session_token);
+CREATE INDEX IF NOT EXISTS idx_proctored_sessions_status ON proctored_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_proctoring_flags_session ON proctoring_flags(session_id);
+
+-- Add proctoring columns to existing tables
+ALTER TABLE levels ADD COLUMN IF NOT EXISTS requires_proctoring BOOLEAN DEFAULT false;
+ALTER TABLE levels ADD COLUMN IF NOT EXISTS proctoring_settings JSONB DEFAULT '{}';
+ALTER TABLE progress ADD COLUMN IF NOT EXISTS proctored_session_id UUID REFERENCES proctored_sessions(id);
+ALTER TABLE progress ADD COLUMN IF NOT EXISTS integrity_verified BOOLEAN DEFAULT false;
+
+-- ============================================
+-- Update game configs with anti-cheat settings
+-- Uses COALESCE and || to MERGE with existing config, not replace
+-- ============================================
+
+-- Circuit Architect - Server-side scoring, circuit verification
+UPDATE games SET config = COALESCE(config, '{}'::jsonb) || jsonb_build_object(
+    'server_side_scoring', true,
+    'requires_circuit_verification', true,
+    'verification_type', 'circuit',
+    'check_solution_diversity', true
+) WHERE slug = 'circuit-architect';
+
+-- Grover's Maze - Server-side scoring, algorithm verification
+UPDATE games SET config = COALESCE(config, '{}'::jsonb) || jsonb_build_object(
+    'server_side_scoring', true,
+    'verification_type', 'algorithm',
+    'check_solution_diversity', true
+) WHERE slug = 'grovers-maze';
+
+-- Deutsch Challenge - Server-side scoring, algorithm verification
+UPDATE games SET config = COALESCE(config, '{}'::jsonb) || jsonb_build_object(
+    'server_side_scoring', true,
+    'verification_type', 'algorithm',
+    'check_solution_diversity', true
+) WHERE slug = 'deutsch-challenge';
+
+-- Gate Puzzle - Server-side scoring, gate verification
+UPDATE games SET config = COALESCE(config, '{}'::jsonb) || jsonb_build_object(
+    'server_side_scoring', true,
+    'requires_gate_verification', true,
+    'verification_type', 'gate_puzzle',
+    'check_solution_diversity', true
+) WHERE slug = 'gate-puzzle';
+
+-- Quantum Spy (BB84) - Server-side scoring
+UPDATE games SET config = COALESCE(config, '{}'::jsonb) || jsonb_build_object(
+    'server_side_scoring', true
+) WHERE slug = 'quantum-spy';
+
+-- Bloch Sphere Explorer - Server-side scoring
+UPDATE games SET config = COALESCE(config, '{}'::jsonb) || jsonb_build_object(
+    'server_side_scoring', true
+) WHERE slug = 'bloch-sphere-explorer';
+
+-- Error Correction Sandbox - Server-side scoring
+UPDATE games SET config = COALESCE(config, '{}'::jsonb) || jsonb_build_object(
+    'server_side_scoring', true,
+    'check_solution_diversity', true
+) WHERE slug = 'error-correction-sandbox';
+
+-- Entanglement Pairs - Server-side scoring
+UPDATE games SET config = COALESCE(config, '{}'::jsonb) || jsonb_build_object(
+    'server_side_scoring', true
+) WHERE slug = 'entanglement-pairs';
+
+-- QKD Protocol Lab - Prerequisites
+UPDATE games SET config = COALESCE(config, '{}'::jsonb) || jsonb_build_object(
+    'server_side_scoring', true,
+    'prerequisite_games', '["quantum-spy"]'::jsonb
+) WHERE slug = 'qkd-protocol-lab';
+
+-- Protocol Designer - Prerequisites (postgraduate)
+UPDATE games SET config = COALESCE(config, '{}'::jsonb) || jsonb_build_object(
+    'server_side_scoring', true,
+    'prerequisite_games', '["qkd-protocol-lab"]'::jsonb
+) WHERE slug = 'protocol-designer';
+
 -- Grant permissions (adjust as needed for your setup)
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO quantum;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO quantum;

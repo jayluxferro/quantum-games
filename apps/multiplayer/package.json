@@ -11,6 +11,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@quantum-games/quantum-sim": "workspace:*",
     "colyseus": "^0.15.0",
     "@colyseus/core": "^0.15.0",
     "@colyseus/schema": "^2.0.0",

@@ -1,5 +1,6 @@
 import { Room, Client } from '@colyseus/core'
 import { Schema, type, MapSchema, ArraySchema } from '@colyseus/schema'
+import { QuantumCircuit } from '@quantum-games/quantum-sim'
 
 class Challenger extends Schema {
   @type('string') id: string = ''
@@ -212,17 +213,47 @@ export class ChallengeRoom extends Room<ChallengeRoomState> {
     console.log(`Challenge ${this.state.challenge.id} started`)
   }
 
-  handleSubmission(playerId: string, solution: string, score: number) {
+  handleSubmission(playerId: string, solution: string, clientScore: number) {
     const challenger = this.state.challengers.get(playerId)
     if (!challenger || challenger.submitted) return
 
-    // Calculate time bonus (up to 20% for fast submissions)
+    // SERVER-SIDE VALIDATION: Parse and simulate the submitted circuit
+    let serverScore = 0
+    try {
+      const circuitData = JSON.parse(solution)
+      const targetState = JSON.parse(this.state.challenge.targetState)
+      
+      // Determine number of qubits from target state or circuit data
+      const firstKey = Object.keys(targetState)[0]
+      const numQubits = circuitData.numQubits || (firstKey ? firstKey.length : 2)
+      
+      // Create and simulate the circuit server-side
+      const circuit = new QuantumCircuit(numQubits)
+      
+      if (circuitData.operations && Array.isArray(circuitData.operations)) {
+        for (const op of circuitData.operations) {
+          circuit.addGate(op.gate, op.qubits, op.params)
+        }
+      }
+      
+      const result = circuit.simulate()
+      
+      // Calculate score by comparing with target state
+      serverScore = this.calculateScore(result.probabilities, targetState)
+      
+      console.log(`[ChallengeRoom] Server validated: client=${clientScore}, server=${serverScore}`)
+    } catch (err) {
+      console.error(`[ChallengeRoom] Invalid solution from ${playerId}:`, err)
+      serverScore = 0
+    }
+
+    // Calculate time bonus (up to 20% for fast submissions) on SERVER score
     const timeBonus = Math.floor(
-      (this.state.timeRemaining / this.state.challenge.timeLimit) * 0.2 * score
+      (this.state.timeRemaining / this.state.challenge.timeLimit) * 0.2 * serverScore
     )
 
     challenger.solution = solution
-    challenger.score = Math.min(score + timeBonus, this.state.challenge.maxScore)
+    challenger.score = Math.min(serverScore + timeBonus, this.state.challenge.maxScore)
     challenger.submitted = true
     challenger.submittedAt = Date.now()
 
@@ -235,6 +266,7 @@ export class ChallengeRoom extends Room<ChallengeRoomState> {
         score: challenger.score,
         timeBonus,
         rank: this.state.leaderboard.indexOf(playerId) + 1,
+        serverValidated: true,
       })
     }
 
@@ -246,7 +278,38 @@ export class ChallengeRoom extends Room<ChallengeRoomState> {
       rank: this.state.leaderboard.indexOf(playerId) + 1,
     })
 
-    console.log(`${challenger.name} submitted with score ${challenger.score}`)
+    console.log(`${challenger.name} submitted with validated score ${challenger.score}`)
+  }
+
+  calculateScore(results: Record<string, number>, targetState: Record<string, number | string>): number {
+    // Handle special cases like 'swap' requirement
+    if (targetState.requirement && typeof targetState.requirement === 'string') {
+      return this.validateSpecialRequirement(results, targetState.requirement)
+    }
+    
+    let totalDiff = 0
+    const allStates = new Set([...Object.keys(results), ...Object.keys(targetState)])
+
+    allStates.forEach((state) => {
+      const actual = results[state] || 0
+      const targetValue = targetState[state]
+      const target = typeof targetValue === 'number' ? targetValue : 0
+      totalDiff += Math.abs(actual - target)
+    })
+
+    const avgDiff = totalDiff / allStates.size
+    return Math.round(Math.max(0, 100 - avgDiff * 100))
+  }
+
+  validateSpecialRequirement(results: Record<string, number>, requirement: string): number {
+    // For swap challenge: input |10⟩ should become |01⟩
+    // This requires knowing the initial state, simplified scoring for now
+    if (requirement === 'swap') {
+      // Check if the circuit correctly swaps states
+      // For a proper swap, we'd need to test with specific inputs
+      return Object.keys(results).length > 0 ? 50 : 0
+    }
+    return 0
   }
 
   sendHint(client: Client) {

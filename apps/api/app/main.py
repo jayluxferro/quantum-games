@@ -13,6 +13,7 @@ from app.routers import (
     achievements_router,
     quantum_router,
     hardware_router,
+    proctoring_router,
 )
 
 settings = get_settings()
@@ -49,6 +50,7 @@ app.include_router(progress_router)
 app.include_router(achievements_router)
 app.include_router(quantum_router)
 app.include_router(hardware_router)
+app.include_router(proctoring_router)
 
 
 @app.get("/")

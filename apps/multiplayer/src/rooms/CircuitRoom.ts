@@ -1,4 +1,5 @@
 import { Room, Client } from '@colyseus/core'
+import { QuantumCircuit } from '@quantum-games/quantum-sim'
 import { GameState, Player, GateOperation, CircuitState } from '../schemas/GameState.js'
 
 interface CircuitOptions {
@@ -115,15 +116,23 @@ export class CircuitRoom extends Room<GameState> {
 
   simulateCircuit(): Record<string, number> {
     const numQubits = this.state.circuit.numQubits
-    const numStates = Math.pow(2, numQubits)
-    const probabilities: Record<string, number> = {}
-
-    for (let i = 0; i < numStates; i++) {
-      const bitstring = i.toString(2).padStart(numQubits, '0')
-      probabilities[bitstring] = 1 / numStates
+    
+    // Create quantum circuit from server state
+    const circuit = new QuantumCircuit(numQubits)
+    
+    // Apply all operations from the authoritative server state
+    for (const op of this.state.circuit.operations) {
+      const qubits = Array.from(op.qubits) as number[]
+      const params = op.params.length > 0 ? (Array.from(op.params) as number[]) : undefined
+      circuit.addGate(op.gate, qubits, params)
     }
-
-    return probabilities
+    
+    // Run actual quantum simulation
+    const result = circuit.simulate()
+    
+    console.log(`[CircuitRoom] Simulated circuit with ${this.state.circuit.operations.length} gates`)
+    
+    return result.probabilities
   }
 
   calculateScore(results: Record<string, number>): number {

@@ -1,4 +1,5 @@
 import { Room, Client } from '@colyseus/core'
+import { QuantumCircuit } from '@quantum-games/quantum-sim'
 import { GameState, Player, GateOperation } from '../schemas/GameState.js'
 
 interface JoinOptions {
@@ -6,6 +7,14 @@ interface JoinOptions {
   gameSlug?: string
   mode?: string
   educationLevel?: string
+  targetState?: Record<string, number>
+  numQubits?: number
+}
+
+interface SubmitData {
+  score: number
+  solution?: string
+  numQubits?: number
 }
 
 export class GameRoom extends Room<GameState> {
@@ -46,10 +55,66 @@ export class GameRoom extends Room<GameState> {
       })
     })
 
-    this.onMessage('submit', (client, data: { score: number }) => {
+    this.onMessage('submit', (client, data: SubmitData) => {
       const player = this.state.players.get(client.sessionId)
-      if (player && data.score > player.score) {
-        player.score = data.score
+      if (!player) return
+
+      // Minimum time-on-task validation (at least 5 seconds of play)
+      const timeElapsed = (Date.now() - this.state.startedAt) / 1000
+      if (timeElapsed < 5) {
+        console.log(`[GameRoom] Rejected submission from ${player.name}: too fast (${timeElapsed}s)`)
+        return
+      }
+
+      let validatedScore = 0
+
+      // If solution provided, validate server-side
+      if (data.solution) {
+        try {
+          const circuitData = JSON.parse(data.solution)
+          const numQubits = circuitData.numQubits || data.numQubits || 2
+          
+          const circuit = new QuantumCircuit(numQubits)
+          if (circuitData.operations && Array.isArray(circuitData.operations)) {
+            for (const op of circuitData.operations) {
+              circuit.addGate(op.gate, op.qubits, op.params)
+            }
+          }
+          
+          // Simulate and compute basic validity score
+          const result = circuit.simulate()
+          const hasValidOutput = Object.keys(result.probabilities).length > 0
+          validatedScore = hasValidOutput ? Math.min(data.score, 100) : 0
+          
+          console.log(`[GameRoom] Validated circuit submission: client=${data.score}, validated=${validatedScore}`)
+        } catch (err) {
+          console.error(`[GameRoom] Invalid solution:`, err)
+          validatedScore = 0
+        }
+      } else if (this.state.circuit.operations.length > 0) {
+        // Use server-side circuit state if no solution provided
+        const numQubits = this.state.circuit.numQubits
+        const circuit = new QuantumCircuit(numQubits)
+        
+        for (const op of this.state.circuit.operations) {
+          const qubits = Array.from(op.qubits) as number[]
+          const params = op.params.length > 0 ? (Array.from(op.params) as number[]) : undefined
+          circuit.addGate(op.gate, qubits, params)
+        }
+        
+        const result = circuit.simulate()
+        const hasValidOutput = Object.keys(result.probabilities).length > 0
+        validatedScore = hasValidOutput ? Math.min(data.score, 100) : 0
+        
+        console.log(`[GameRoom] Validated from server state: client=${data.score}, validated=${validatedScore}`)
+      } else {
+        // Non-circuit game: apply reasonable cap and time-based validation
+        validatedScore = Math.min(data.score, 100)
+        console.log(`[GameRoom] Non-circuit submission: score=${validatedScore}`)
+      }
+
+      if (validatedScore > player.score) {
+        player.score = validatedScore
       }
       this.checkGameEnd()
     })

@@ -6,6 +6,7 @@ from app.routers.progress import router as progress_router
 from app.routers.achievements import router as achievements_router
 from app.routers.quantum import router as quantum_router
 from app.routers.hardware import router as hardware_router
+from app.routers.proctoring import router as proctoring_router
 
 __all__ = [
     "health_router",
@@ -15,4 +16,5 @@ __all__ = [
     "achievements_router",
     "quantum_router",
     "hardware_router",
+    "proctoring_router",
 ]
