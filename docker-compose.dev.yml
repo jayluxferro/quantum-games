@@ -1,0 +1,23 @@
+version: '3.9'
+
+# Development overrides - hot reloading, debug mode, etc.
+
+services:
+  api:
+    environment:
+      - LOG_LEVEL=debug
+      - API_DEBUG=true
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  multiplayer:
+    environment:
+      - LOG_LEVEL=debug
+    command: pnpm dev
+
+  lti:
+    environment:
+      - LOG_LEVEL=debug
+    command: pnpm dev
+
+  web:
+    command: pnpm dev --host 0.0.0.0

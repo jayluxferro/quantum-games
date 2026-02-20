@@ -1,0 +1,39 @@
+{
+  "name": "quantum-games",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source quantum educational games platform",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "build:verify": "./scripts/verify-builds.sh",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "test:builds": "./scripts/verify-builds.sh",
+    "clean": "pnpm -r run clean",
+    "docker:up": "docker compose up -d",
+    "docker:up:build": "docker compose up -d --build",
+    "docker:dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d",
+    "docker:dev:build": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build",
+    "docker:down": "docker compose down",
+    "docker:restart": "docker compose down && docker compose up -d",
+    "docker:logs": "docker compose logs -f",
+    "docker:ps": "docker compose ps",
+    "db:migrate": "cd apps/api && python -m alembic upgrade head",
+    "db:generate": "cd apps/api && python -m alembic revision --autogenerate"
+  },
+  "keywords": [
+    "quantum",
+    "education",
+    "games",
+    "qiskit",
+    "phaser"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

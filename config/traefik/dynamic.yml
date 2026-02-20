@@ -1,0 +1,97 @@
+# Traefik Dynamic Configuration
+http:
+  routers:
+    web-router:
+      rule: "Host(`${DOMAIN}`)"
+      service: web-service
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    api-router:
+      rule: "Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+      service: api-service
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - api-stripprefix
+        - cors-headers
+
+    keycloak-router:
+      rule: "Host(`auth.${DOMAIN}`)"
+      service: keycloak-service
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+
+    lti-router:
+      rule: "Host(`${DOMAIN}`) && PathPrefix(`/lti`)"
+      service: lti-service
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+      middlewares:
+        - lti-stripprefix
+
+    colyseus-router:
+      rule: "Host(`${DOMAIN}`)"
+      service: colyseus-service
+      entryPoints:
+        - colyseus
+
+  services:
+    web-service:
+      loadBalancer:
+        servers:
+          - url: "http://web:5173"
+
+    api-service:
+      loadBalancer:
+        servers:
+          - url: "http://api:8000"
+
+    keycloak-service:
+      loadBalancer:
+        servers:
+          - url: "http://keycloak:8080"
+
+    lti-service:
+      loadBalancer:
+        servers:
+          - url: "http://lti:3001"
+
+    colyseus-service:
+      loadBalancer:
+        servers:
+          - url: "http://multiplayer:2567"
+
+  middlewares:
+    api-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/api"
+
+    lti-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/lti"
+
+    cors-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowOriginList:
+          - "https://${DOMAIN}"
+        accessControlMaxAge: 100
+        addVaryHeader: true

@@ -1,0 +1,191 @@
+{
+  "id": "quantum-games",
+  "realm": "quantum-games",
+  "displayName": "Quantum Games",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 30,
+  "roles": {
+    "realm": [
+      {
+        "name": "student",
+        "description": "Student role - can play games and track progress"
+      },
+      {
+        "name": "teacher",
+        "description": "Teacher role - can view class progress and assign games"
+      },
+      {
+        "name": "admin",
+        "description": "Administrator role - full system access"
+      },
+      {
+        "name": "researcher",
+        "description": "Researcher role - access to advanced tools and data export"
+      }
+    ]
+  },
+  "defaultRoles": ["student"],
+  "requiredCredentials": ["password"],
+  "passwordPolicy": "length(8) and specialChars(1) and digits(1)",
+  "clients": [
+    {
+      "clientId": "quantum-games-web",
+      "name": "Quantum Games Web Client",
+      "description": "Frontend web application",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://localhost:3000"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access"
+      ]
+    },
+    {
+      "clientId": "quantum-games-api",
+      "name": "Quantum Games API",
+      "description": "Backend API service",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "protocol": "openid-connect",
+      "secret": "api-client-secret-change-in-production"
+    },
+    {
+      "clientId": "quantum-games-lti",
+      "name": "Quantum Games LTI",
+      "description": "LTI integration service",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": true,
+      "protocol": "openid-connect",
+      "redirectUris": [
+        "http://localhost:3001/*"
+      ],
+      "secret": "lti-client-secret-change-in-production"
+    }
+  ],
+  "users": [
+    {
+      "username": "demo-student",
+      "email": "student@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Demo",
+      "lastName": "Student",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "student123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["student"]
+    },
+    {
+      "username": "demo-teacher",
+      "email": "teacher@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Demo",
+      "lastName": "Teacher",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "teacher123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["teacher"]
+    },
+    {
+      "username": "demo-admin",
+      "email": "admin@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Demo",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin"]
+    }
+  ],
+  "groups": [
+    {
+      "name": "basic-school",
+      "attributes": {
+        "education_level": ["basic"]
+      }
+    },
+    {
+      "name": "junior-high",
+      "attributes": {
+        "education_level": ["junior"]
+      }
+    },
+    {
+      "name": "senior-high",
+      "attributes": {
+        "education_level": ["senior"]
+      }
+    },
+    {
+      "name": "undergraduate",
+      "attributes": {
+        "education_level": ["undergraduate"]
+      }
+    },
+    {
+      "name": "postgraduate",
+      "attributes": {
+        "education_level": ["postgraduate"]
+      }
+    }
+  ],
+  "scopeMappings": [],
+  "clientScopeMappings": {},
+  "smtpServer": {}
+}
